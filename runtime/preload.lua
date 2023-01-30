@@ -51,6 +51,6 @@ Select = Chan.Select
 local Scheduler = require 'src.scheduler'
 P = Scheduler.New() -- global singleton 
 
-function go(f)
-    P:newGoroutine(f)
+function go(f, ...)
+    P:newG(f, ...)
 end

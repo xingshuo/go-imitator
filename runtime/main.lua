@@ -11,5 +11,5 @@ package.path = package.path .. ';src/?.lua'
 require(script)
 assert(type(main) == 'function', 'script no main function: ' .. script)
 
-P:newGoroutine(main, true)
+P:newMainG(main)
 P:run()

@@ -6,6 +6,7 @@ local Scheduler = Infra.NewStruct('Scheduler')
 function Scheduler:init()
     self.m_mGoroutines = {} -- goroutine : true
     self.m_mTimers = {} -- timer : when
+    self.m_gMain = nil -- main goroutine
 end
 
 function Scheduler:addTimer(timer, when)
@@ -41,9 +42,17 @@ function Scheduler:_checkTimeout()
     return timeoutNum, nearest
 end
 
-function Scheduler:newGoroutine(f, ismain)
-    local g = Goroutine.New(f, ismain)
+function Scheduler:newG(f, ...)
+    local g = Goroutine.New(f, ...)
     self.m_mGoroutines[g] = true
+    return g
+end
+
+function Scheduler:newMainG(f, ...)
+    assert(self.m_gMain == nil, 're-create main goroutine')
+    local g = self:newG(f, ...)
+    g:setMain()
+    self.m_gMain = g
     return g
 end
 
@@ -51,7 +60,7 @@ function Scheduler:run()
     while true do
         local runQ
         repeat
-            runQ = {}
+            runQ = {} -- to be optimized
             for g in pairs(self.m_mGoroutines) do
                 if g:isRunable() then
                     runQ[#runQ + 1] = g
@@ -63,6 +72,7 @@ function Scheduler:run()
                 if g:isDead() then
                     self.m_mGoroutines[g] = nil
                     if g:isMain() then
+                        self.m_gMain = nil
                         print('main goroutine process done')
                         return
                     end
