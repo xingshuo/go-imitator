@@ -41,6 +41,13 @@ function close(ch)
     ch:close()
 end
 
+-- only chan
+function cap(ch)
+    return ch:capacity()
+end
+
+Select = Chan.Select
+
 local Scheduler = require 'src.scheduler'
 P = Scheduler.New() -- global singleton 
 

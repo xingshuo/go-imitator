@@ -32,12 +32,30 @@ function Chan:__len()
     return self.m_MQ:Size()
 end
 
+function Chan:capacity()
+    return self.m_MQ:Capacity()
+end
+
 function Chan:isFull()
     return self.m_MQ:IsFull()
 end
 
 function Chan:isEmpty()
     return self.m_MQ:IsEmpty()
+end
+
+function Chan:_pushRecvQ(g)
+    tinsert(self.m_RecvQ, g)
+end
+
+function Chan:_delFromRecvQ(g)
+    for i, gr in pairs(self.m_RecvQ) do
+        if gr == g then
+            tremove(self.m_RecvQ, i)
+            return true
+        end
+    end
+    return false
 end
 
 function Chan:Send(val)
@@ -84,6 +102,14 @@ function Chan:Recv()
     return val, true
 end
 
+function Chan:isReadable()
+    return self.m_MQ:Size() > 0
+end
+
+function Chan:isClosed()
+    return self.m_Closed
+end
+
 function Chan:close()
     if self.m_Closed then
         panic('close of closed channel')
@@ -125,12 +151,30 @@ function NoBufferChan:__len()
     return 0
 end
 
+function NoBufferChan:capacity()
+    return 0
+end
+
 function NoBufferChan:isFull()
     return true
 end
 
 function NoBufferChan:isEmpty()
     return true
+end
+
+function NoBufferChan:_pushRecvQ(g)
+    tinsert(self.m_RecvQ, g)
+end
+
+function NoBufferChan:_delFromRecvQ(g)
+    for i, gr in pairs(self.m_RecvQ) do
+        if gr == g then
+            tremove(self.m_RecvQ, i)
+            return true
+        end
+    end
+    return false
 end
 
 function NoBufferChan:Send(val)
@@ -142,7 +186,6 @@ function NoBufferChan:Send(val)
         val = val,
     }
     tinsert(self.m_SendQ, sudog)
-
     if #self.m_RecvQ > 0 then
         local g = tremove(self.m_RecvQ, 1)
         goready(g)
@@ -172,6 +215,14 @@ function NoBufferChan:Recv()
     return val, true
 end
 
+function NoBufferChan:isReadable()
+    return #self.m_SendQ > 0
+end
+
+function NoBufferChan:isClosed()
+    return self.m_Closed
+end
+
 function NoBufferChan:close()
     if self.m_Closed then
         panic('close of closed channel')
@@ -198,6 +249,40 @@ function M.New(cap)
     else
         return NoBufferChan:New()
     end
+end
+
+-- Notice: only listen chans recv
+function M.Select(lchans, noblocking)
+    local n = #lchans
+    if n == 0 then
+        return
+    end
+
+    repeat
+        for i = 1, n do
+            local ch = lchans[i]
+            if ch:isReadable() then
+                return ch
+            end
+            if ch:isClosed() then
+                return ch
+            end
+        end
+        if noblocking then
+            return
+        end
+        local g = Goroutine.Running()
+        for i = 1, n do
+            local ch = lchans[i]
+            ch:_pushRecvQ(g)
+        end
+
+        gopark()
+        for i = 1, n do
+            local ch = lchans[i]
+            ch:_delFromRecvQ(g)
+        end
+    until false
 end
 
 return M
