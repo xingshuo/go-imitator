@@ -8,14 +8,13 @@ Features
 * goroutine
 * chan && select
 * time.Timer
-* sync.WaitGroup
+* sync.Mutex、sync.RWMutex
+* sync.WaitGroup、sync.Once
 
 Test
 ---------
 ```
-lua runtime/main.lua test/test_chan.lua
-lua runtime/main.lua test/test_select.lua
-lua runtime/main.lua test/test_timer.lua
-lua runtime/main.lua test/test_waitgroup.lua
-...
+.\run.bat #windows
+
+bash run.sh #linux
 ```
